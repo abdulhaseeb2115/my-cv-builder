@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export const runtime = "nodejs";
+
+type Provider = "openai" | "claude" | "gemini";
 
 type GenerateBody = {
 	cv: unknown;
 	jd: string;
+	provider?: Provider;
 };
 
 export async function POST(req: Request) {
@@ -19,13 +24,7 @@ export async function POST(req: Request) {
 			);
 		}
 
-		const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-		if (!client.apiKey) {
-			return NextResponse.json(
-				{ error: "OPENAI_API_KEY is not set" },
-				{ status: 500 }
-			);
-		}
+		const provider: Provider = (body.provider as Provider) ?? "openai";
 
 		const system = [
 			"You are an expert resume writer and LaTeX typesetter.",
@@ -49,16 +48,62 @@ export async function POST(req: Request) {
 			"\nGenerate the tailored LaTeX CV as a single compilable document.",
 		].join("\n");
 
-		const completion = await client.chat.completions.create({
-			model: "gpt-4o-mini",
-			temperature: 0.3,
-			messages: [
-				{ role: "system", content: system },
-				{ role: "user", content: user },
-			],
-		});
+		let latex: string | undefined;
 
-		const latex = completion.choices[0]?.message?.content?.trim();
+		if (provider === "openai") {
+			const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+			if (!client.apiKey) {
+				return NextResponse.json(
+					{ error: "OPENAI_API_KEY is not set" },
+					{ status: 500 }
+				);
+			}
+			const completion = await client.chat.completions.create({
+				model: "gpt-4o-mini",
+				temperature: 0.3,
+				messages: [
+					{ role: "system", content: system },
+					{ role: "user", content: user },
+				],
+			});
+			latex = completion.choices[0]?.message?.content?.trim();
+		} else if (provider === "claude") {
+			const anthropic = new Anthropic({
+				apiKey: process.env.ANTHROPIC_API_KEY,
+			});
+			if (!anthropic.apiKey) {
+				return NextResponse.json(
+					{ error: "ANTHROPIC_API_KEY is not set" },
+					{ status: 500 }
+				);
+			}
+			const msg = await anthropic.messages.create({
+				model: "claude-3-5-sonnet-latest",
+				max_tokens: 4000,
+				system,
+				messages: [{ role: "user", content: user }],
+			});
+			const text =
+				msg.content
+					?.map((c: any) => (c.type === "text" ? c.text : ""))
+					.join("") ?? "";
+			latex = text.trim();
+		} else if (provider === "gemini") {
+			const apiKey = process.env.GOOGLE_API_KEY;
+			if (!apiKey) {
+				return NextResponse.json(
+					{ error: "GOOGLE_API_KEY is not set" },
+					{ status: 500 }
+				);
+			}
+			const genAI = new GoogleGenerativeAI(apiKey);
+			const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+			const prompt = [system, "\n\n", user].join("");
+			const resp = await model.generateContent(prompt);
+			const text = resp.response.text();
+			latex = text.trim();
+		}
+
 		if (!latex || !latex.includes("\\documentclass")) {
 			return NextResponse.json(
 				{ error: "Model did not return valid LaTeX." },

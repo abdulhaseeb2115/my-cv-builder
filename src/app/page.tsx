@@ -13,6 +13,9 @@ export default function Home() {
 		JSON.stringify(defaultCV, null, 2)
 	);
 	const [jd, setJd] = useState<string>("");
+	const [provider, setProvider] = useState<"openai" | "claude" | "gemini">(
+		"openai"
+	);
 	const [latex, setLatex] = useState<string>(
 		"% Click Generate CV to create LaTeX from your CV JSON and JD\n\\documentclass[11pt]{article}\n\\begin{document}\n\\section*{Your Name}\nPlaceholder.\n\\end{document}\n"
 	);
@@ -39,7 +42,7 @@ export default function Home() {
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cv, jd }),
+				body: JSON.stringify({ cv, jd, provider }),
 			});
 			const data = await res.json();
 			if (!res.ok) throw new Error(data?.error || "Failed to generate");
@@ -49,7 +52,7 @@ export default function Home() {
 		} finally {
 			setLoading(false);
 		}
-	}, [cvJson, jd, safeParse]);
+	}, [cvJson, jd, provider, safeParse]);
 
 	const compile = useCallback(async (source: string) => {
 		setCompiling(true);
@@ -118,6 +121,40 @@ export default function Home() {
 					value={jd}
 					onChange={(e) => setJd(e.target.value)}
 				/>
+
+				<div className="flex items-center gap-4 py-1">
+					<span className="text-sm font-medium">Provider:</span>
+					<label className="text-sm flex items-center gap-1">
+						<input
+							type="radio"
+							name="provider"
+							value="openai"
+							checked={provider === "openai"}
+							onChange={() => setProvider("openai")}
+						/>
+						OpenAI
+					</label>
+					<label className="text-sm flex items-center gap-1">
+						<input
+							type="radio"
+							name="provider"
+							value="claude"
+							checked={provider === "claude"}
+							onChange={() => setProvider("claude")}
+						/>
+						Claude
+					</label>
+					<label className="text-sm flex items-center gap-1">
+						<input
+							type="radio"
+							name="provider"
+							value="gemini"
+							checked={provider === "gemini"}
+							onChange={() => setProvider("gemini")}
+						/>
+						Gemini
+					</label>
+				</div>
 
 				<div className="flex gap-2">
 					<button

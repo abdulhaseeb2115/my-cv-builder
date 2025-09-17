@@ -1,16 +1,19 @@
-## CV Builder (Next.js 15 + OpenAI + LaTeX)
+## CV Builder (Next.js 15 + OpenAI/Claude/Gemini + LaTeX)
 
 ### Features
 
 - Upload/paste CV JSON and a Job Description
-- Generate ATS-optimized LaTeX via OpenAI GPT-4o-mini
+- Generate ATS-optimized LaTeX via OpenAI GPT-4o-mini, Anthropic Claude, or Google Gemini
 - Monaco editor for LaTeX with live PDF preview
 - Compile LaTeX to PDF server-side with pdflatex (Docker)
 
 ### Prerequisites
 
 - Node.js 20+
-- OpenAI API key
+- One or more API keys depending on provider
+  - `OPENAI_API_KEY` (for OpenAI)
+  - `ANTHROPIC_API_KEY` (for Claude)
+  - `GOOGLE_API_KEY` (for Gemini)
 
 ### Setup
 
@@ -18,12 +21,21 @@
 
 ```bash
 npm ci
+# If you just pulled changes that added providers, run:
+npm i anthropic @google/generative-ai --no-audit --no-fund
 ```
 
-2. Create `.env.local` with:
+2. Create `.env.local` with any providers you plan to use:
 
 ```bash
-OPENAI_API_KEY=your_key_here
+# OpenAI
+OPENAI_API_KEY=your_openai_key
+
+# Anthropic (Claude)
+ANTHROPIC_API_KEY=your_anthropic_key
+
+# Google Gemini
+GOOGLE_API_KEY=your_google_key
 ```
 
 3. Run dev:
@@ -36,7 +48,7 @@ Open http://localhost:3000
 
 ### Usage
 
-- Paste or upload an example from `dat/cv.json`.
+- Paste or upload your CV JSON, paste a JD, and choose a provider (OpenAI/Claude/Gemini).
 - Click "Generate CV" to get LaTeX; edit in the editor.
 - Preview updates live; click Download PDF to save.
 
@@ -44,13 +56,23 @@ Open http://localhost:3000
 
 ```bash
 docker build -t cv-builder .
-docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -p 3000:3000 cv-builder
+docker run -p 3000:3000 \
+  -e OPENAI_API_KEY=$OPENAI_API_KEY \
+  -e ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY \
+  -e GOOGLE_API_KEY=$GOOGLE_API_KEY \
+  cv-builder
 ```
+
+### API
+
+- `POST /api/generate` → `{ latex }`
+  - Body: `{ cv: any, jd: string, provider?: "openai" | "claude" | "gemini" }` (default: `openai`)
+- `POST /api/compile` → PDF blob
 
 ### Notes
 
-- API routes: `POST /api/generate` returns `{ latex }`.
-- `POST /api/compile` returns a PDF blob. Requires `pdflatex` (provided in Docker image).
+- Ensure your `.env.local` or container env includes the key for the selected provider.
+- Docker image includes `texlive-full` to support `pdflatex` for compilation.
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
