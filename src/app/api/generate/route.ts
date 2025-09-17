@@ -15,9 +15,11 @@ type GenerateBody = {
 
 export async function POST(req: Request) {
 	try {
+		console.log("[generate] Request received");
 		const body = (await req.json()) as Partial<GenerateBody>;
 
 		if (!body || !body.cv || !body.jd) {
+			console.warn("[generate] Missing cv or jd in body");
 			return NextResponse.json(
 				{ error: "Missing 'cv' or 'jd' in request body" },
 				{ status: 400 }
@@ -25,6 +27,7 @@ export async function POST(req: Request) {
 		}
 
 		const provider: Provider = (body.provider as Provider) ?? "openai";
+		console.log("[generate] Using provider:", provider);
 
 		const system = [
 			"You are an expert resume writer and LaTeX typesetter.",
@@ -51,8 +54,10 @@ export async function POST(req: Request) {
 		let latex: string | undefined;
 
 		if (provider === "openai") {
+			console.log("[generate] Calling OpenAI");
 			const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 			if (!client.apiKey) {
+				console.error("[generate] OPENAI_API_KEY not set");
 				return NextResponse.json(
 					{ error: "OPENAI_API_KEY is not set" },
 					{ status: 500 }
@@ -68,10 +73,12 @@ export async function POST(req: Request) {
 			});
 			latex = completion.choices[0]?.message?.content?.trim();
 		} else if (provider === "claude") {
+			console.log("[generate] Calling Anthropic Claude");
 			const anthropic = new Anthropic({
 				apiKey: process.env.ANTHROPIC_API_KEY,
 			});
 			if (!anthropic.apiKey) {
+				console.error("[generate] ANTHROPIC_API_KEY not set");
 				return NextResponse.json(
 					{ error: "ANTHROPIC_API_KEY is not set" },
 					{ status: 500 }
@@ -89,8 +96,10 @@ export async function POST(req: Request) {
 					.join("") ?? "";
 			latex = text.trim();
 		} else if (provider === "gemini") {
+			console.log("[generate] Calling Google Gemini");
 			const apiKey = process.env.GOOGLE_API_KEY;
 			if (!apiKey) {
+				console.error("[generate] GOOGLE_API_KEY not set");
 				return NextResponse.json(
 					{ error: "GOOGLE_API_KEY is not set" },
 					{ status: 500 }
@@ -105,15 +114,21 @@ export async function POST(req: Request) {
 		}
 
 		if (!latex || !latex.includes("\\documentclass")) {
+			console.warn("[generate] Model did not return valid LaTeX");
 			return NextResponse.json(
 				{ error: "Model did not return valid LaTeX." },
 				{ status: 502 }
 			);
 		}
 
+		console.log(
+			"[generate] Successfully generated LaTeX (length)",
+			latex.length
+		);
 		return NextResponse.json({ latex });
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
+		console.error("[generate] Error:", message);
 		return NextResponse.json({ error: message }, { status: 500 });
 	}
 }

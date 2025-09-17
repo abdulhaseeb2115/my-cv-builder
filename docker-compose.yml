@@ -1,14 +1,9 @@
 services:
-  cv-builder:
+  latex-server:
     build:
-      context: .
+      context: ./latex-server
       dockerfile: Dockerfile
-    container_name: cv-builder
+    container_name: latex-server
     restart: unless-stopped
     ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - NEXT_TELEMETRY_DISABLED=1
-    volumes:
-      - ./data:/app/data
+      - "8080:8080"

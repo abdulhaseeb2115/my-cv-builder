@@ -34,19 +34,27 @@ export default function Home() {
 	}, []);
 
 	const generate = useCallback(async () => {
+		console.log("[ui] Generate clicked");
 		setLoading(true);
 		setError("");
 		try {
 			const cv = safeParse(cvJson);
-			if (!cv) throw new Error("CV JSON is invalid");
+			if (!cv) {
+				console.warn("[ui] CV JSON invalid");
+				throw new Error("CV JSON is invalid");
+			}
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ cv, jd, provider }),
 			});
 			const data = await res.json();
-			if (!res.ok) throw new Error(data?.error || "Failed to generate");
+			if (!res.ok) {
+				console.error("[ui] Generate failed", data);
+				throw new Error(data?.error || "Failed to generate");
+			}
 			setLatex(String(data.latex));
+			console.log("[ui] LaTeX set (length)", String(data.latex).length);
 		} catch (e: unknown) {
 			setError(e instanceof Error ? e.message : "Unknown error");
 		} finally {
@@ -55,6 +63,7 @@ export default function Home() {
 	}, [cvJson, jd, provider, safeParse]);
 
 	const compile = useCallback(async (source: string) => {
+		console.log("[ui] Compile triggered (debounced)", source.length);
 		setCompiling(true);
 		setError("");
 		try {
@@ -65,6 +74,7 @@ export default function Home() {
 			});
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({}));
+				console.error("[ui] Compile failed", data);
 				throw new Error(data?.error || "Failed to compile LaTeX");
 			}
 			const blob = await res.blob();
@@ -73,6 +83,7 @@ export default function Home() {
 				if (prev) URL.revokeObjectURL(prev);
 				return url;
 			});
+			console.log("[ui] PDF URL set");
 		} catch (e: unknown) {
 			setError(e instanceof Error ? e.message : "Unknown error");
 		} finally {
@@ -88,6 +99,7 @@ export default function Home() {
 	}, [compile]);
 
 	useEffect(() => {
+		console.log("[ui] Effect: compile on latex change");
 		debouncedCompile(latex);
 		return () => {
 			if (compileTimer.current) window.clearTimeout(compileTimer.current);
@@ -101,6 +113,7 @@ export default function Home() {
 		a.href = pdfUrl;
 		a.download = "CV.pdf";
 		a.click();
+		console.log("[ui] Download clicked");
 	}, [pdfUrl]);
 
 	return (

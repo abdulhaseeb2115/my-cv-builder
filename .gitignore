@@ -9,6 +9,7 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
+latex-server/node_modules
 
 # testing
 /coverage
