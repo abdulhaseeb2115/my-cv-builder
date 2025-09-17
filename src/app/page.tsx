@@ -1,103 +1,209 @@
-import Image from "next/image";
+"use client";
+
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as defaultCV from "../../data/cv.json";
+
+const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
+	ssr: false,
+});
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+	const [cvJson, setCvJson] = useState<string>(
+		JSON.stringify(defaultCV, null, 2)
+	);
+	const [jd, setJd] = useState<string>("");
+	const [latex, setLatex] = useState<string>(
+		"% Click Generate CV to create LaTeX from your CV JSON and JD\n\\documentclass[11pt]{article}\n\\begin{document}\n\\section*{Your Name}\nPlaceholder.\n\\end{document}\n"
+	);
+	const [pdfUrl, setPdfUrl] = useState<string>("");
+	const [loading, setLoading] = useState<boolean>(false);
+	const [compiling, setCompiling] = useState<boolean>(false);
+	const [error, setError] = useState<string>("");
+	const compileTimer = useRef<number | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
-  );
+	const safeParse = useCallback((text: string) => {
+		try {
+			return JSON.parse(text);
+		} catch {
+			return null;
+		}
+	}, []);
+
+	const generate = useCallback(async () => {
+		setLoading(true);
+		setError("");
+		try {
+			const cv = safeParse(cvJson);
+			if (!cv) throw new Error("CV JSON is invalid");
+			const res = await fetch("/api/generate", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ cv, jd }),
+			});
+			const data = await res.json();
+			if (!res.ok) throw new Error(data?.error || "Failed to generate");
+			setLatex(String(data.latex));
+		} catch (e: unknown) {
+			setError(e instanceof Error ? e.message : "Unknown error");
+		} finally {
+			setLoading(false);
+		}
+	}, [cvJson, jd, safeParse]);
+
+	const compile = useCallback(async (source: string) => {
+		setCompiling(true);
+		setError("");
+		try {
+			const res = await fetch("/api/compile", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ latex: source }),
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data?.error || "Failed to compile LaTeX");
+			}
+			const blob = await res.blob();
+			const url = URL.createObjectURL(blob);
+			setPdfUrl((prev) => {
+				if (prev) URL.revokeObjectURL(prev);
+				return url;
+			});
+		} catch (e: unknown) {
+			setError(e instanceof Error ? e.message : "Unknown error");
+		} finally {
+			setCompiling(false);
+		}
+	}, []);
+
+	const debouncedCompile = useMemo(() => {
+		return (source: string) => {
+			if (compileTimer.current) window.clearTimeout(compileTimer.current);
+			compileTimer.current = window.setTimeout(() => compile(source), 600);
+		};
+	}, [compile]);
+
+	useEffect(() => {
+		debouncedCompile(latex);
+		return () => {
+			if (compileTimer.current) window.clearTimeout(compileTimer.current);
+			if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+		};
+	}, [latex, debouncedCompile]);
+
+	const downloadPdf = useCallback(async () => {
+		if (!pdfUrl) return;
+		const a = document.createElement("a");
+		a.href = pdfUrl;
+		a.download = "CV.pdf";
+		a.click();
+	}, [pdfUrl]);
+
+	return (
+		<div className="min-h-screen grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 sm:p-6">
+			<section className="flex flex-col gap-3 border rounded-md p-3 bg-white text-gray-800">
+				<h2 className="font-semibold">Data Input</h2>
+				<label className="text-sm font-medium">CV JSON</label>
+				<textarea
+					className="border rounded p-2 font-mono text-sm h-48"
+					spellCheck={false}
+					value={cvJson}
+					onChange={(e) => setCvJson(e.target.value)}
+				/>
+
+				<label className="text-sm font-medium">Job Description</label>
+				<textarea
+					className="border rounded p-2 text-sm h-48"
+					value={jd}
+					onChange={(e) => setJd(e.target.value)}
+				/>
+
+				<div className="flex gap-2">
+					<button
+						className="px-3 py-2 rounded bg-black text-white text-sm disabled:opacity-60 hover:scale-[98%]"
+						onClick={generate}
+						disabled={loading}
+					>
+						{loading ? "Generating..." : "Generate CV"}
+					</button>
+				</div>
+				{error && <p className="text-red-600 text-sm">Error: {error}</p>}
+			</section>
+
+			<section className="flex flex-col border rounded-md overflow-hidden bg-white">
+				<div className="flex items-center justify-between p-2 border-b">
+					<h2 className="font-semibold">LaTeX Editor</h2>
+					<div className="text-xs text-gray-500">
+						{compiling ? "Compiling..." : ""}
+					</div>
+				</div>
+				<div className="flex-1 min-h-[400px]">
+					<MonacoEditor
+						height="100%"
+						defaultLanguage="latex"
+						theme="vs-light"
+						value={latex}
+						onChange={(v) => setLatex(v ?? "")}
+						options={{
+							fontSize: 11,
+							minimap: { enabled: false },
+							wordWrap: "on",
+							scrollBeyondLastLine: false,
+							automaticLayout: true,
+						}}
+						onMount={(editor, monaco) => {
+							const langs = (monaco.languages as any).getLanguages?.() ?? [];
+							if (!langs.some((l: any) => l.id === "latex")) {
+								monaco.languages.register({ id: "latex" });
+							}
+							(monaco.languages as any).setMonarchTokensProvider("latex", {
+								tokenizer: {
+									root: [
+										[/\\\\[a-zA-Z@]+\*?/, "keyword"],
+										[/%.*/, "comment"],
+										[/\{[^}]*\}/, "string"],
+									],
+								},
+							});
+						}}
+					/>
+				</div>
+			</section>
+
+			<section className="flex flex-col border rounded-md overflow-hidden bg-white col-span-2">
+				<div className="flex items-center justify-between p-2 border-b">
+					<h2 className="font-semibold">Preview</h2>
+					<div className="flex items-center gap-2">
+						<button
+							className="px-3 py-1 rounded border text-sm"
+							onClick={() => compile(latex)}
+						>
+							Recompile
+						</button>
+						<button
+							className="px-3 py-1 rounded bg-black text-white text-sm disabled:opacity-60"
+							onClick={downloadPdf}
+							disabled={!pdfUrl}
+						>
+							Download PDF
+						</button>
+					</div>
+				</div>
+				<div className="flex-1 min-h-[400px] bg-gray-50">
+					{pdfUrl ? (
+						<iframe
+							title="PDF Preview"
+							src={pdfUrl}
+							className="w-full h-full"
+						/>
+					) : (
+						<div className="p-4 text-sm text-gray-600">
+							PDF will appear here after compile.
+						</div>
+					)}
+				</div>
+			</section>
+		</div>
+	);
 }

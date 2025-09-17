@@ -1,3 +1,57 @@
+## CV Builder (Next.js 15 + OpenAI + LaTeX)
+
+### Features
+
+- Upload/paste CV JSON and a Job Description
+- Generate ATS-optimized LaTeX via OpenAI GPT-4o-mini
+- Monaco editor for LaTeX with live PDF preview
+- Compile LaTeX to PDF server-side with pdflatex (Docker)
+
+### Prerequisites
+
+- Node.js 20+
+- OpenAI API key
+
+### Setup
+
+1. Install deps:
+
+```bash
+npm ci
+```
+
+2. Create `.env.local` with:
+
+```bash
+OPENAI_API_KEY=your_key_here
+```
+
+3. Run dev:
+
+```bash
+npm run dev
+```
+
+Open http://localhost:3000
+
+### Usage
+
+- Paste or upload an example from `dat/cv.json`.
+- Click "Generate CV" to get LaTeX; edit in the editor.
+- Preview updates live; click Download PDF to save.
+
+### Build & Run with Docker
+
+```bash
+docker build -t cv-builder .
+docker run -e OPENAI_API_KEY=$OPENAI_API_KEY -p 3000:3000 cv-builder
+```
+
+### Notes
+
+- API routes: `POST /api/generate` returns `{ latex }`.
+- `POST /api/compile` returns a PDF blob. Requires `pdflatex` (provided in Docker image).
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
