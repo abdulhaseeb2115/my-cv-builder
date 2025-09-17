@@ -117,8 +117,8 @@ export default function Home() {
 	}, [pdfUrl]);
 
 	return (
-		<div className="min-h-screen grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 sm:p-6">
-			<section className="flex flex-col gap-3 border rounded-md p-3 bg-white text-gray-800">
+		<div className="min-h-screen grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 sm:p-6 text-gray-800">
+			<section className="flex flex-col gap-3 border rounded-md p-3 bg-white">
 				<h2 className="font-semibold">Data Input</h2>
 				<label className="text-sm font-medium">CV JSON</label>
 				<textarea

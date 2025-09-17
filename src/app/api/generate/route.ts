@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { SYSTEM_PROMPT } from "../../../../config";
 
 export const runtime = "nodejs";
 
@@ -29,18 +30,7 @@ export async function POST(req: Request) {
 		const provider: Provider = (body.provider as Provider) ?? "openai";
 		console.log("[generate] Using provider:", provider);
 
-		const system = [
-			"You are an expert resume writer and LaTeX typesetter.",
-			"Goal: Produce a single, valid LaTeX document optimized for ATS.",
-			"Constraints:",
-			"- Strict keyword alignment to the job description.",
-			"- Clear, simple formatting; no images or graphics.",
-			"- Use a modern, clean template (e.g., article class with custom sections).",
-			"- No placeholders like TODO; fill with best-fit content from CV data.",
-			"- Keep to 1-2 pages, concise bullet points, quantified achievements.",
-			"Output: Only LaTeX, starting with \\documentclass and ending with \\end{document}.",
-		].join("\n");
-
+		const system = SYSTEM_PROMPT;
 		const user = [
 			"Here is the base CV data in JSON:",
 			"```json",
@@ -64,14 +54,19 @@ export async function POST(req: Request) {
 				);
 			}
 			const completion = await client.chat.completions.create({
-				model: "gpt-4o-mini",
-				temperature: 0.3,
+				model: "gpt-4o",
+				temperature: 0.2,
 				messages: [
 					{ role: "system", content: system },
 					{ role: "user", content: user },
 				],
 			});
 			latex = completion.choices[0]?.message?.content?.trim();
+			latex = latex
+				?.replace(/^```latex/, "")
+				.replace(/^```/, "")
+				.replace(/```$/, "")
+				.trim();
 		} else if (provider === "claude") {
 			console.log("[generate] Calling Anthropic Claude");
 			const anthropic = new Anthropic({
@@ -85,7 +80,7 @@ export async function POST(req: Request) {
 				);
 			}
 			const msg = await anthropic.messages.create({
-				model: "claude-3-5-sonnet-latest",
+				model: "claude-3-7-sonnet-latest",
 				max_tokens: 4000,
 				system,
 				messages: [{ role: "user", content: user }],
