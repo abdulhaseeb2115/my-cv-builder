@@ -1,15 +1,16 @@
-import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import { NextResponse } from "next/server";
+import { generateLatex } from "@/app/utils";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { SYSTEM_PROMPT } from "../../../../config";
+import { DEFAULT_CV, SYSTEM_PROMPT } from "../../../../config";
 
 export const runtime = "nodejs";
 
 type Provider = "openai" | "claude" | "gemini";
 
 type GenerateBody = {
-	cv: unknown;
+	cv: any;
 	jd: string;
 	provider?: Provider;
 };
@@ -19,10 +20,10 @@ export async function POST(req: Request) {
 		console.log("[generate] Request received");
 		const body = (await req.json()) as Partial<GenerateBody>;
 
-		if (!body || !body.cv || !body.jd) {
-			console.warn("[generate] Missing cv or jd in body");
+		if (!body || !body.jd || !body.provider) {
+			console.warn("[generate] Missing jd or provider in body");
 			return NextResponse.json(
-				{ error: "Missing 'cv' or 'jd' in request body" },
+				{ error: "Missing 'jd' or 'provider' in request body" },
 				{ status: 400 }
 			);
 		}
@@ -30,18 +31,17 @@ export async function POST(req: Request) {
 		const provider: Provider = (body.provider as Provider) ?? "openai";
 		console.log("[generate] Using provider:", provider);
 
-		const system = SYSTEM_PROMPT;
 		const user = [
-			"Here is the base CV data in JSON:",
-			"```json",
-			JSON.stringify(body.cv, null, 2),
-			"```",
-			"\nHere is the target job description:",
+			"Here is the base CV data:",
+			JSON.stringify(DEFAULT_CV, null, 2),
+			"",
+			"Here is the target job description:",
 			body.jd,
-			"\nGenerate the tailored LaTeX CV as a single compilable document.",
+			"",
+			"Generate the ATS-optimized JSON response with updated summary, skills (categorized), and experience bullets.",
 		].join("\n");
 
-		let latex: string | undefined;
+		let responseText: string = "";
 
 		if (provider === "openai") {
 			console.log("[generate] Calling OpenAI");
@@ -54,19 +54,15 @@ export async function POST(req: Request) {
 				);
 			}
 			const completion = await client.chat.completions.create({
-				model: "gpt-4o",
-				temperature: 0.2,
+				model: "gpt-4o-mini",
+				temperature: 0.3,
+				response_format: { type: "json_object" },
 				messages: [
-					{ role: "system", content: system },
+					{ role: "system", content: SYSTEM_PROMPT },
 					{ role: "user", content: user },
 				],
 			});
-			latex = completion.choices[0]?.message?.content?.trim();
-			latex = latex
-				?.replace(/^```latex/, "")
-				.replace(/^```/, "")
-				.replace(/```$/, "")
-				.trim();
+			responseText = completion.choices[0]?.message?.content?.trim() || "";
 		} else if (provider === "claude") {
 			console.log("[generate] Calling Anthropic Claude");
 			const anthropic = new Anthropic({
@@ -80,16 +76,17 @@ export async function POST(req: Request) {
 				);
 			}
 			const msg = await anthropic.messages.create({
-				model: "claude-3-7-sonnet-latest",
+				model: "claude-3-7-sonnet-20250219",
 				max_tokens: 4000,
-				system,
+				temperature: 0.3,
+				system: SYSTEM_PROMPT,
 				messages: [{ role: "user", content: user }],
 			});
-			const text =
-				msg.content
-					?.map((c: any) => (c.type === "text" ? c.text : ""))
-					.join("") ?? "";
-			latex = text.trim();
+
+			responseText = msg.content
+				.filter((c: any) => c.type === "text")
+				.map((c: any) => c.text)
+				.join("");
 		} else if (provider === "gemini") {
 			console.log("[generate] Calling Google Gemini");
 			const apiKey = process.env.GOOGLE_API_KEY;
@@ -101,26 +98,54 @@ export async function POST(req: Request) {
 				);
 			}
 			const genAI = new GoogleGenerativeAI(apiKey);
-			const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
-			const prompt = [system, "\n\n", user].join("");
+			const model = genAI.getGenerativeModel({
+				model: "gemini-1.5-pro",
+				generationConfig: {
+					temperature: 0.3,
+					responseMimeType: "application/json",
+				},
+			});
+			const prompt = [SYSTEM_PROMPT, "\n\n", user].join("");
 			const resp = await model.generateContent(prompt);
-			const text = resp.response.text();
-			latex = text.trim();
+			responseText = resp.response.text();
 		}
 
-		if (!latex || !latex.includes("\\documentclass")) {
-			console.warn("[generate] Model did not return valid LaTeX");
+		// Clean up response text to ensure it's valid JSON
+		responseText = responseText.trim();
+		if (responseText.startsWith("```json")) {
+			responseText = responseText.slice(7);
+		}
+		if (responseText.startsWith("```")) {
+			responseText = responseText.slice(3);
+		}
+		if (responseText.endsWith("```")) {
+			responseText = responseText.slice(0, -3);
+		}
+		responseText = responseText.trim();
+
+		// Parse the JSON to validate it
+		let optimizedData;
+		try {
+			optimizedData = JSON.parse(responseText);
+		} catch (e) {
+			console.error(
+				"[generate] Failed to parse AI response as JSON:",
+				responseText
+			);
 			return NextResponse.json(
-				{ error: "Model did not return valid LaTeX." },
+				{ error: "AI did not return valid JSON" },
 				{ status: 502 }
 			);
 		}
 
-		console.log(
-			"[generate] Successfully generated LaTeX (length)",
-			latex.length
-		);
-		return NextResponse.json({ latex });
+		// Generate LaTeX using the optimized data and original CV data
+		const latex = generateLatex(optimizedData);
+
+		console.log("[generate] Successfully generated optimized data and LaTeX");
+		return NextResponse.json({
+			latex,
+			optimizedData, // Also return this for debugging/preview
+		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : "Unknown error";
 		console.error("[generate] Error:", message);

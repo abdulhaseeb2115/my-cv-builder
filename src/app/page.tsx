@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { CV } from "../../types";
+import { DEFAULT_CV } from "../../config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import * as defaultCV from "../../data/cv.json";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 	ssr: false,
@@ -10,14 +11,14 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 
 export default function Home() {
 	const [cvJson, setCvJson] = useState<string>(
-		JSON.stringify(defaultCV, null, 2)
+		JSON.stringify(DEFAULT_CV, null, 2)
 	);
 	const [jd, setJd] = useState<string>("");
 	const [provider, setProvider] = useState<"openai" | "claude" | "gemini">(
-		"openai"
+		"claude" // Default to Claude for best results
 	);
 	const [latex, setLatex] = useState<string>(
-		"% Click Generate CV to create LaTeX from your CV JSON and JD\n\\documentclass[11pt]{article}\n\\begin{document}\n\\section*{Your Name}\nPlaceholder.\n\\end{document}\n"
+		"% Click 'Generate ATS-Optimized CV' to create your tailored resume\n% The system will:\n% 1. Analyze your CV and the job description\n% 2. Optimize content with relevant keywords\n% 3. Generate a professional LaTeX document\n% 4. Compile it to PDF automatically\n"
 	);
 	const [pdfUrl, setPdfUrl] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
@@ -25,9 +26,9 @@ export default function Home() {
 	const [error, setError] = useState<string>("");
 	const compileTimer = useRef<number | null>(null);
 
-	const safeParse = useCallback((text: string) => {
+	const safeParse = useCallback((text: string): CV | null => {
 		try {
-			return JSON.parse(text);
+			return JSON.parse(text) as CV;
 		} catch {
 			return null;
 		}
@@ -35,25 +36,39 @@ export default function Home() {
 
 	const generate = useCallback(async () => {
 		console.log("[ui] Generate clicked");
+
+		if (!jd.trim()) {
+			setError("Please enter a job description");
+			return;
+		}
+
 		setLoading(true);
 		setError("");
+
 		try {
 			const cv = safeParse(cvJson);
 			if (!cv) {
 				console.warn("[ui] CV JSON invalid");
-				throw new Error("CV JSON is invalid");
+				throw new Error("CV JSON is invalid. Please check the format.");
 			}
+
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ cv, jd, provider }),
+				body: JSON.stringify({ jd, provider }),
 			});
+
 			const data = await res.json();
+
 			if (!res.ok) {
 				console.error("[ui] Generate failed", data);
-				throw new Error(data?.error || "Failed to generate");
+				throw new Error(data?.error || "Failed to generate optimized CV");
 			}
+
 			setLatex(String(data.latex));
+			if (data.optimizedData) {
+				console.log("Optimized Data:", data.optimizedData);
+			}
 			console.log("[ui] LaTeX set (length)", String(data.latex).length);
 		} catch (e: unknown) {
 			setError(e instanceof Error ? e.message : "Unknown error");
@@ -63,20 +78,28 @@ export default function Home() {
 	}, [cvJson, jd, provider, safeParse]);
 
 	const compile = useCallback(async (source: string) => {
+		// Don't compile if it's just the placeholder text
+		if (source.includes("Click 'Generate ATS-Optimized CV'")) {
+			return;
+		}
+
 		console.log("[ui] Compile triggered (debounced)", source.length);
 		setCompiling(true);
 		setError("");
+
 		try {
 			const res = await fetch("/api/compile", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ latex: source }),
 			});
+
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({}));
 				console.error("[ui] Compile failed", data);
 				throw new Error(data?.error || "Failed to compile LaTeX");
 			}
+
 			const blob = await res.blob();
 			const url = URL.createObjectURL(blob);
 			setPdfUrl((prev) => {
@@ -94,24 +117,31 @@ export default function Home() {
 	const debouncedCompile = useMemo(() => {
 		return (source: string) => {
 			if (compileTimer.current) window.clearTimeout(compileTimer.current);
-			compileTimer.current = window.setTimeout(() => compile(source), 600);
+			compileTimer.current = window.setTimeout(() => compile(source), 800);
 		};
 	}, [compile]);
 
 	useEffect(() => {
 		console.log("[ui] Effect: compile on latex change");
-		debouncedCompile(latex);
+		if (latex && !latex.includes("Click 'Generate ATS-Optimized CV'")) {
+			debouncedCompile(latex);
+		}
 		return () => {
 			if (compileTimer.current) window.clearTimeout(compileTimer.current);
-			if (pdfUrl) URL.revokeObjectURL(pdfUrl);
 		};
 	}, [latex, debouncedCompile]);
+
+	useEffect(() => {
+		return () => {
+			if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+		};
+	}, []);
 
 	const downloadPdf = useCallback(async () => {
 		if (!pdfUrl) return;
 		const a = document.createElement("a");
 		a.href = pdfUrl;
-		a.download = "CV.pdf";
+		a.download = "CV_ATS_Optimized.pdf";
 		a.click();
 		console.log("[ui] Download clicked");
 	}, [pdfUrl]);
