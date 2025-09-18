@@ -50,10 +50,19 @@ export async function POST(req: Request) {
 		const serviceUrl = process.env.LATEX_SERVICE_URL;
 		if (serviceUrl) {
 			console.log("[compile] Delegating to LaTeX service:", serviceUrl);
+
+			// Debug: Log the JSON being sent
+			const jsonPayload = JSON.stringify({ latex: body.latex });
+			console.log("[compile] JSON payload length:", jsonPayload.length);
+			console.log(
+				"[compile] JSON payload preview:",
+				jsonPayload.substring(0, 200) + "..."
+			);
+
 			const res = await fetch(`${serviceUrl.replace(/\/$/, "")}/compile`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ latex: body.latex }),
+				body: jsonPayload,
 			});
 			if (!res.ok) {
 				const text = await res.text();

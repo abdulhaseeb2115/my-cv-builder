@@ -13,12 +13,22 @@ async function runPdflatex(workingDir) {
 			{ cwd: workingDir }
 		);
 		let stderr = "";
+		let stdout = "";
 		child.stderr.on("data", (d) => {
 			stderr += String(d);
 		});
+		child.stdout.on("data", (d) => {
+			stdout += String(d);
+		});
 		child.on("close", (code) => {
 			if (code === 0) resolve();
-			else reject(new Error(`pdflatex exited with code ${code}: ${stderr}`));
+			else {
+				console.error("[latex-server] pdflatex stdout:", stdout);
+				console.error("[latex-server] pdflatex stderr:", stderr);
+				reject(
+					new Error(`pdflatex exited with code ${code}: ${stderr || stdout}`)
+				);
+			}
 		});
 		child.on("error", (err) => reject(err));
 	});
@@ -27,10 +37,28 @@ async function runPdflatex(workingDir) {
 const app = express();
 app.use(express.json({ limit: "5mb" }));
 
+// Add error handling for JSON parsing
+app.use((error, req, res, next) => {
+	if (error instanceof SyntaxError && error.status === 400 && "body" in error) {
+		console.error("[latex-server] JSON parsing error:", error.message);
+		return res.status(400).json({ error: "Invalid JSON in request body" });
+	}
+	next(error);
+});
+
 app.post("/compile", async (req, res) => {
 	let tmpDir = "";
 	try {
 		console.log("[latex-server] /compile called");
+		console.log("[latex-server] Request body type:", typeof req.body);
+		console.log(
+			"[latex-server] Request body keys:",
+			Object.keys(req.body || {})
+		);
+		console.log(
+			"[latex-server] Raw body preview:",
+			JSON.stringify(req.body).substring(0, 200) + "..."
+		);
 		const latex = req.body && req.body.latex;
 		if (!latex || typeof latex !== "string") {
 			console.warn("[latex-server] Missing latex in body");

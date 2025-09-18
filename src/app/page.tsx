@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { CV } from "../../types";
+import { CV } from "../types";
 import { DEFAULT_CV } from "../../config";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 

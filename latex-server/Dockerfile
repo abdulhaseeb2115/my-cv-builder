@@ -12,6 +12,9 @@ RUN apt-get update \
     texlive-latex-extra \
     texlive-fonts-recommended \
     texlive-fonts-extra \
+    texlive-xetex \
+    texlive-luatex \
+    lmodern \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package.json package-lock.json ./

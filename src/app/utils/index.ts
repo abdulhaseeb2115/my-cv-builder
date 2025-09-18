@@ -4,11 +4,10 @@ import {
 	type Experience,
 	type Project,
 	type Education,
-} from "../../../types";
+} from "../../types";
 
 export function generateLatex(optimizedData: Partial<CV>): string {
 	// Merge optimized data with original CV data
-	// Handle skills format conversion from AI response (lowercase keys) to expected format (capitalized keys)
 	let skills = DEFAULT_CV.skills;
 	if (optimizedData.skills) {
 		const aiSkills = optimizedData.skills as any;
@@ -43,24 +42,26 @@ export function generateLatex(optimizedData: Partial<CV>): string {
 
 % Packages:
 \\usepackage[
-    ignoreheadfoot,
-    top=2 cm,
-    bottom=2 cm,
-    left=2 cm,
-    right=2 cm,
-    footskip=1.0 cm
-]{geometry}
-\\usepackage{titlesec}
-\\usepackage{tabularx}
-\\usepackage{array}
-\\usepackage[dvipsnames]{xcolor}
-\\definecolor{primaryColor}{RGB}{0, 0, 0}
-\\usepackage{enumitem}
-\\usepackage{fontawesome5}
-\\usepackage{amsmath}
+    ignoreheadfoot, % set margins without considering header and footer
+    top=2 cm, % seperation between body and page edge from the top
+    bottom=2 cm, % seperation between body and page edge from the bottom
+    left=2 cm, % seperation between body and page edge from the left
+    right=2 cm, % seperation between body and page edge from the right
+    footskip=1.0 cm, % seperation between body and footer
+    % showframe % for debugging 
+]{geometry} % for adjusting page geometry
+\\usepackage{titlesec} % for customizing section titles
+\\usepackage{tabularx} % for making tables with fixed width columns
+\\usepackage{array} % tabularx requires this
+\\usepackage[dvipsnames]{xcolor} % for coloring text
+\\definecolor{primaryColor}{RGB}{0, 0, 0} % define primary color
+\\usepackage{enumitem} % for customizing lists
+\\usepackage{fontawesome5} % for using icons
+\\usepackage{amsmath} % for math
 \\usepackage[
     pdftitle={${escapeLatex(cv.name)}'s CV},
     pdfauthor={${escapeLatex(cv.name)}},
+	pdfcreator={${escapeLatex(cv.name)}},
     colorlinks=true,
     urlcolor=primaryColor
 ]{hyperref}
@@ -73,12 +74,13 @@ export function generateLatex(optimizedData: Partial<CV>): string {
 \\usepackage{needspace}
 \\usepackage{iftex}
 
-% Ensure that generate pdf is machine readable/ATS parsable:
+% Ensure that generated PDF is machine readable / ATS parsable:
 \\ifPDFTeX
+    \\input{glyphtounicode}
+    \\pdfgentounicode=1
     \\usepackage[T1]{fontenc}
     \\usepackage[utf8]{inputenc}
     \\usepackage{lmodern}
-    \\pdfgentounicode=1
 \\fi
 
 \\usepackage{charter}
@@ -90,7 +92,7 @@ export function generateLatex(optimizedData: Partial<CV>): string {
 \\setcounter{secnumdepth}{0}
 \\setlength{\\parindent}{0pt}
 \\setlength{\\topskip}{0pt}
-\\setlength{\\columnsep}{0.15cm}
+\\setlength{\\columnsep}{0.15 cm}
 \\pagenumbering{gobble}
 
 \\titleformat{\\section}{\\needspace{4\\baselineskip}\\bfseries\\large}{}{0pt}{}[\\vspace{1pt}\\titlerule]
@@ -116,6 +118,20 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     \\end{itemize}
 }
 
+
+\\newenvironment{highlightsforbulletentries}{
+    \\begin{itemize}[
+        topsep=0.10 cm,
+        parsep=0.10 cm,
+        partopsep=0pt,
+        itemsep=0pt,
+        leftmargin=10pt
+    ]
+}{
+    \\end{itemize}
+}
+
+
 \\newenvironment{onecolentry}{
     \\begin{adjustwidth}{
         0 cm + 0.00001 cm
@@ -124,7 +140,7 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     }
 }{
     \\end{adjustwidth}
-}
+} % new environment for one column entries
 
 \\newenvironment{twocolentry}[2][]{
     \\onecolentry
@@ -134,17 +150,44 @@ export function generateLatex(optimizedData: Partial<CV>): string {
 }{
     \\switchcolumn \\raggedleft \\secondColumn
     \\end{paracol}
-    \\end{onecolentry}
-}
+    \\endonecolentry
+} % new environment for two column entries
+
+\\newenvironment{threecolentry}[3][]{
+    \\onecolentry
+    \\def\\thirdColumn{#3}
+    \\setcolumnwidth{, \\fill, 4.5 cm}
+    \\begin{paracol}{3}
+    {\\raggedright #2} \\switchcolumn
+}{
+    \\switchcolumn \\raggedleft \\thirdColumn
+    \\end{paracol}
+    \\endonecolentry
+} % new environment for three column entries
+
 
 \\newenvironment{header}{
     \\setlength{\\topsep}{0pt}\\par\\kern\\topsep\\centering\\linespread{1.5}
 }{
     \\par\\kern\\topsep
-}
+} % new environment for the header
+
+\\newcommand{\\placelastupdatedtext}{% \\placetextbox{<horizontal pos>}{<vertical pos>}{<stuff>}
+  \\AddToShipoutPictureFG*{% Add <stuff> to current page foreground
+    \\put(
+        \\LenToUnit{\\paperwidth-2 cm-0 cm+0.05cm},
+        \\LenToUnit{\\paperheight-1.0 cm}
+    ){\\vtop{{\\null}\\makebox[0pt][c]{
+        \\small\\color{gray}\\textit{Last updated in September 2024}\\hspace{\\widthof{Last updated in September 2024}}
+    }}}%
+  }%
+}%
+
 
 % save the original href command in a new command:
 \\let\\hrefWithoutArrow\\href
+
+% new command for external links:
 
 \\begin{document}
     \\newcommand{\\AND}{\\unskip
@@ -160,40 +203,39 @@ export function generateLatex(optimizedData: Partial<CV>): string {
         \\vspace{5 pt}
 
         \\normalsize
-        \\mbox{\\hrefWithoutArrow{mailto:${cv.email}}{${escapeLatex(
-		cv.email
-	)}}}%
-        \\kern 5.0 pt%
+        \\mbox{\\hrefWithoutArrow{mailto:${escapeLatex(
+					cv.email
+				)}}{${escapeLatex(cv.email)}}}%
+        \\kern 5.0 pt
         \\AND%
-        \\kern 5.0 pt%
+        \\kern 5.0 pt
         ${
 					cv.website
-						? `\\kern 5.0 pt%
-        \\AND%
-        \\kern 5.0 pt%
-        \\mbox{\\hrefWithoutArrow{${cv.website}}{${escapeLatex(
-								cv.website.replace("https://", "").replace("http://", "")
-						  )}}}%`
+						? `\\mbox{\\hrefWithoutArrow{${cv.website}}{${escapeLatex(
+								cv.website
+									.replace("https://www.", "")
+									.replace("http://www.", "")
+						  )}}} 
+                                \\kern 5.0 pt 
+                                \\AND
+                                \\kern 5.0 pt`
 						: ""
 				}
         ${
 					cv.linkedin
-						? `\\kern 5.0 pt%
-        \\AND%
-        \\kern 5.0 pt%
-        \\mbox{\\hrefWithoutArrow{${cv.linkedin}}{${escapeLatex(
-								cv.linkedin.split("/").pop() || ""
-						  )}}}%`
+						? `\\mbox{\\hrefWithoutArrow{${cv.linkedin}}{${escapeLatex(
+								"linkedin.com/in/" + cv.linkedin.split("/").pop() || ""
+						  )}}} 
+                                \\kern 5.0 pt
+                                \\AND
+                                \\kern 5.0 pt`
 						: ""
 				}
         ${
 					cv.github
-						? `\\kern 5.0 pt%
-        \\AND%
-        \\kern 5.0 pt%
-        \\mbox{\\hrefWithoutArrow{${cv.github}}{${escapeLatex(
-								cv.github.split("/").pop() || ""
-						  )}}}%`
+						? `\\mbox{\\hrefWithoutArrow{${cv.github}}{${escapeLatex(
+								"github.com/" + cv.github.split("/").pop() || ""
+						  )}}}`
 						: ""
 				}
     \\end{header}
@@ -201,20 +243,21 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     \\vspace{5 pt - 0.3 cm}
 
     \\section{Summary}
-
+	
     \\begin{onecolentry}
         ${escapeLatex(cv.summary)}
     \\end{onecolentry}
     
     \\section{Skills}
-
     ${generateSkillsSection(cv.skills)}
 
     \\section{Experience}
-
     ${cv.experience
-			.map(
-				(exp: Experience) => `
+			.map((exp: Experience) => {
+				const bullets = (exp.bullets || [])
+					.map((b) => `\\item ${escapeLatex(b)}`)
+					.join("\n            ");
+				return `
     \\begin{twocolentry}{
         ${escapeLatex(exp.start)} – ${escapeLatex(exp.end)}
     }
@@ -224,30 +267,29 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     \\vspace{0.10 cm}
     \\begin{onecolentry}
         \\begin{highlights}
-            ${exp.bullets
-							.map((bullet: string) => `\\item ${escapeLatex(bullet)}`)
-							.join("\n            ")}
+            ${bullets}
         \\end{highlights}
-    \\end{onecolentry}`
-			)
+    \\end{onecolentry}`;
+			})
 			.join("\n\n    \\vspace{0.2 cm}\n")}
 
     ${
 			cv.projects && cv.projects.length > 0
 				? `
     \\section{Projects}
-
     ${cv.projects
-			.map(
-				(project: Project) => `
+			.map((project: Project) => {
+				const bullets = (project.bullets || [])
+					.map((b) => `\\item ${escapeLatex(b)}`)
+					.join("\n            ");
+				const linkText = project.link
+					? `\\href{${project.link}}{${escapeLatex(
+							project.link.replace("https://", "").replace("http://", "")
+					  )}}`
+					: "";
+				return `
     \\begin{twocolentry}{
-        ${
-					project.link
-						? `\\href{${project.link}}{${escapeLatex(
-								project.link.replace("https://", "").replace("http://", "")
-						  )}}`
-						: ""
-				}
+        ${linkText}
     }
         \\textbf{${escapeLatex(project.name)}}
     \\end{twocolentry}
@@ -255,47 +297,44 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     \\vspace{0.10 cm}
     \\begin{onecolentry}
         \\begin{highlights}
-            ${project.bullets
-							.map((bullet: string) => `\\item ${escapeLatex(bullet)}`)
-							.join("\n            ")}
+            ${bullets}
         \\end{highlights}
-    \\end{onecolentry}`
-			)
+    \\end{onecolentry}`;
+			})
 			.join("\n\n    \\vspace{0.2 cm}\n")}`
 				: ""
 		}
-    
-    \\section{Education}
 
+    \\section{Education}
     ${cv.education
-			.map(
-				(edu: Education) => `
+			.map((edu: Education) => {
+				const bullets = (edu.bullets || [])
+					.map((b) => `\\item ${escapeLatex(b)}`)
+					.join("\n            ");
+				return `
     \\begin{twocolentry}{
         ${escapeLatex(edu.start)} – ${escapeLatex(edu.end)}
     }
         \\textbf{${escapeLatex(edu.school)}}, ${escapeLatex(edu.degree)}
-    \\end{twocolentry}${
-			edu.bullets && edu.bullets.length > 0
-				? `
+    \\end{twocolentry}
 
-    \\vspace{0.10 cm}
+    ${
+			bullets
+				? `\\vspace{0.10 cm}
     \\begin{onecolentry}
         \\begin{highlights}
-            ${edu.bullets
-							.map((bullet: string) => `\\item ${escapeLatex(bullet)}`)
-							.join("\n            ")}
+            ${bullets}
         \\end{highlights}
     \\end{onecolentry}`
 				: ""
-		}`
-			)
+		}`;
+			})
 			.join("\n\n    \\vspace{0.2 cm}\n")}
 
     ${
 			cv.achievements && cv.achievements.length > 0
 				? `
     \\section{Achievements}
-
     ${cv.achievements
 			.map(
 				(achievement: any) => `
@@ -313,77 +352,41 @@ export function generateLatex(optimizedData: Partial<CV>): string {
 }
 
 export function generateSkillsSection(skills: CV["skills"]): string {
-	if (Array.isArray(skills)) {
-		// Old format - backward compatibility
-		return `\\begin{onecolentry}
-        ${skills.map((s) => escapeLatex(s)).join(", ")}
-    \\end{onecolentry}`;
-	}
-
 	// New categorized format
-	const sections = [];
+	const sections: string[] = [];
 
-	if (skills.Languages && skills.Languages.length > 0) {
+	const addSection = (label: string, items?: string[]) => {
+		if (!items || items.length === 0) return;
 		sections.push(`\\begin{onecolentry}
-        \\textbf{Languages:} ${skills.Languages.map((s) => escapeLatex(s)).join(
-					", "
-				)}
+        \\textbf{${escapeLatex(label)}:} ${items
+			.map((s) => escapeLatex(s))
+			.join(", ")}
     \\end{onecolentry}`);
-	}
+	};
 
-	if (skills.Frontend && skills.Frontend.length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{Frontend:} ${skills.Frontend.map((s) => escapeLatex(s)).join(
-					", "
-				)}
-    \\end{onecolentry}`);
-	}
-
-	if (skills.Backend && skills.Backend.length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{Backend:} ${skills.Backend.map((s) => escapeLatex(s)).join(
-					", "
-				)}
-    \\end{onecolentry}`);
-	}
-
-	if (skills["AI/ML"] && skills["AI/ML"].length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{AI/ML:} ${skills["AI/ML"]
-					.map((s) => escapeLatex(s))
-					.join(", ")}
-    \\end{onecolentry}`);
-	}
-
-	if (skills.Database && skills.Database.length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{Databases:} ${skills.Database.map((s) => escapeLatex(s)).join(
-					", "
-				)}
-    \\end{onecolentry}`);
-	}
-
-	if (skills["Cloud & DevOps"] && skills["Cloud & DevOps"].length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{Cloud & DevOps:} ${skills["Cloud & DevOps"]
-					.map((s) => escapeLatex(s))
-					.join(", ")}
-    \\end{onecolentry}`);
-	}
-
-	if (skills.Tools && skills.Tools.length > 0) {
-		sections.push(`\\begin{onecolentry}
-        \\textbf{Tools:} ${skills.Tools.map((s) => escapeLatex(s)).join(", ")}
-    \\end{onecolentry}`);
-	}
+	addSection("Languages", skills.Languages);
+	addSection("Frontend", skills.Frontend);
+	addSection("Backend", skills.Backend);
+	addSection("AI/ML", skills["AI/ML"]);
+	addSection("Databases", skills.Database);
+	addSection("Cloud & DevOps", skills["Cloud & DevOps"]); // ensure label uses escaped ampersand
+	addSection("Tools", skills.Tools);
 
 	return sections.join("\n\n    \\vspace{0.2 cm}\n\n    ");
 }
 
-export function escapeLatex(text: string): string {
-	return text
+export function escapeLatex(text: unknown): string {
+	if (text === null || text === undefined) return "";
+	const s = String(text);
+	return s
 		.replace(/\\/g, "\\textbackslash{}")
-		.replace(/[&%$#_{}]/g, "\\$&")
+		.replace(/&/g, "\\&")
+		.replace(/%/g, "\\%")
+		.replace(/\$/g, "\\$")
+		.replace(/#/g, "\\#")
+		.replace(/_/g, "\\_")
+		.replace(/{/g, "\\{")
+		.replace(/}/g, "\\}")
 		.replace(/~/g, "\\textasciitilde{}")
 		.replace(/\^/g, "\\textasciicircum{}");
 }

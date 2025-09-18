@@ -1,4 +1,4 @@
-import { CV } from "../types";
+import { CV } from "../src/types";
 
 export const SYSTEM_PROMPT = `You are an expert ATS (Applicant Tracking System) resume optimizer and professional CV writer.
 
@@ -189,7 +189,7 @@ export const DEFAULT_CV: CV = {
 		},
 		{
 			name: "IoT Automated Parking Solution",
-			link: "https://airspace.vercel.app",
+			link: "https://airr-space.netlify.app",
 			bullets: [
 				"IoT-based parking system using MERN stack, Expo, Socket.io, Python, and Arduino for real-time monitoring with ML-powered computer vision capabilities.",
 			],
