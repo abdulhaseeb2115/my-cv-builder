@@ -1,15 +1,12 @@
-import { NextResponse } from "next/server";
-import { promises as fs } from "fs";
-import { mkdtemp, rm } from "fs/promises";
-import path from "path";
 import os from "os";
+import path from "path";
+import { promises as fs } from "fs";
+import { CompileBody } from "@/types";
 import { spawn } from "child_process";
+import { mkdtemp, rm } from "fs/promises";
+import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
-
-type CompileBody = {
-	latex: string;
-};
 
 async function runPdflatex(workingDir: string): Promise<void> {
 	await new Promise<void>((resolve, reject) => {

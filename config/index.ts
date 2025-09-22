@@ -1,6 +1,8 @@
 import { CV } from "../src/types";
 
-export const SYSTEM_PROMPT = `You are an expert ATS (Applicant Tracking System) resume optimizer and professional CV writer.
+export const getSystemPrompt = (
+	allowBold: boolean
+) => `You are an expert ATS (Applicant Tracking System) resume optimizer and professional CV writer.
 
 Your task is to analyze the provided CV data and job description, then generate optimized content that will:
 1. Pass ATS filters by using relevant keywords from the job description
@@ -44,6 +46,11 @@ Rules:
 - DO add some simple skills from the JD that are related to domain (e.g., "CRON Jobs, Message Queues, Third Part APIs")
 - DO emphasize relevant skills from the CV that match the JD
 - DO use keywords from the JD where they naturally fit
+${
+	allowBold
+		? `- DO bold the keywords according to the JD in summary and experience bullets (e.g., "Developed **React** applications...")`
+		: ""
+}
 - DO quantify achievements (e.g., "improved performance by 30%")
 - DO use strong action verbs
 - Keep all dates and company names exactly as provided
@@ -77,6 +84,7 @@ export const DEFAULT_CV: CV = {
 			"Expo",
 			"Tailwind CSS",
 			"MUI",
+			"AntDesign",
 			"Styled Components",
 			"Bootstrap",
 			"jQuery",
@@ -140,22 +148,35 @@ export const DEFAULT_CV: CV = {
 			start: "Aug 2023",
 			end: "Present",
 			bullets: [
-				"Led end-to-end development of full-stack projects, architecting backend systems, frontend interfaces, AWS infrastructure, and CI/CD pipelines.",
-				"Developed AI-powered CAD generation application integrating OpenSCAD with generative AI capabilities.",
-				"Built PWA web applications with TikTok-like features using tRPC, LangChain, and generative AI for content creation.",
-				"Integrated advanced payment processing with Stripe and implemented headless CMS solutions using Strapi.",
+				"Led end-to-end development of full-stack solutions, including backend architecture, frontend development, AWS infrastructure setup, and CI/CD automation, reducing deployment time by 45%.",
+				"Engineered an AI-driven CAD generation tool by integrating OpenSCAD with generative AI, significantly accelerating 3D design processes and reducing manual effort by 60%.",
+				"Developed PWA applications with TikTok-style features using tRPC, LangChain, and generative AI; optimized with LangChain to improve agent context handling and response accuracy, increasing user satisfaction.",
+				"Integrated secure payment workflows with Stripe and deployed headless CMS solutions using Strapi, enabling 99.9% uptime and seamless content management for clients.",
 				"Collaborated on multiple team projects and independently delivered complete solutions for diverse client requirements.",
 			],
 		},
 		{
 			title: "Full Stack Developer",
+			company: "Bloom",
+			start: "Jul 2022",
+			end: "Jul 2023",
+			bullets: [
+				"Delivered end-to-end React, Next.js, and Node.js applications, ensuring high performance and timely delivery for multiple client projects.",
+				"Built and deployed a booking system that automated scheduling, reducing manual processes by 40% and improving customer onboarding efficiency.",
+				"Implemented full Stripe payment workflows, increasing transaction success rates and enabling secure, scalable revenue streams for businesses.",
+				"Developed a mobile-friendly calculation and management app for a trucking company, improving operational efficiency and cutting reporting time by 30%.",
+			],
+		},
+		{
+			title: "Full Stack Developer",
 			company: "Freelance",
-			start: "Sep 2022",
+			start: "Dec 2022",
 			end: "Present",
 			bullets: [
 				"Developed and maintained comprehensive influencer marketing platform including frontend, backend, AWS deployment, CI/CD, and RBAC implementation.",
-				"Streamlined payment processes for multiple businesses using Stripe integration, improving transaction efficiency and user experience.",
-				"Created booking systems and web apps for local businesses, increasing their online presence and sales capabilities.",
+				"Created a concert web app where users submitted song wishes in real time, with an admin dashboard and large-screen display; developed in Next.js to handle thousands of concurrent requests seamlessly.",
+				"Built a complete flow for token management with TikTok, YouTube, and Instagram APIs, integrating dynamic token refresh and secure data handling.",
+				"Implemented a contract-based collaboration system similar to Upwork, enabling structured project agreements for a client.",
 				"Provided AI-powered automation solutions to help businesses optimize operational processes.",
 			],
 		},

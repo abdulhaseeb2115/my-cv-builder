@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { CV } from "../types";
+import { generateLatex } from "../utils";
 import { DEFAULT_CV } from "../../config";
+import { CompileBody, CV, GenerateBody, Provider } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -14,12 +15,9 @@ export default function Home() {
 		JSON.stringify(DEFAULT_CV, null, 2)
 	);
 	const [jd, setJd] = useState<string>("");
-	const [provider, setProvider] = useState<"openai" | "claude" | "gemini">(
-		"claude" // Default to Claude for best results
-	);
-	const [latex, setLatex] = useState<string>(
-		"% Click 'Generate ATS-Optimized CV' to create your tailored resume\n% The system will:\n% 1. Analyze your CV and the job description\n% 2. Optimize content with relevant keywords\n% 3. Generate a professional LaTeX document\n% 4. Compile it to PDF automatically\n"
-	);
+	const [allowBold, setAllowBold] = useState<boolean>(false);
+	const [provider, setProvider] = useState<Provider>("claude");
+	const [latex, setLatex] = useState<string>(generateLatex(DEFAULT_CV));
 	const [pdfUrl, setPdfUrl] = useState<string>("");
 	const [loading, setLoading] = useState<boolean>(false);
 	const [compiling, setCompiling] = useState<boolean>(false);
@@ -52,10 +50,16 @@ export default function Home() {
 				throw new Error("CV JSON is invalid. Please check the format.");
 			}
 
+			const body: GenerateBody = {
+				jd,
+				allowBold,
+				provider,
+			};
+
 			const res = await fetch("/api/generate", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ jd, provider }),
+				body: JSON.stringify(body),
 			});
 
 			const data = await res.json();
@@ -75,7 +79,7 @@ export default function Home() {
 		} finally {
 			setLoading(false);
 		}
-	}, [cvJson, jd, provider, safeParse]);
+	}, [cvJson, jd, provider, safeParse, allowBold]);
 
 	const compile = useCallback(async (source: string) => {
 		// Don't compile if it's just the placeholder text
@@ -88,10 +92,12 @@ export default function Home() {
 		setError("");
 
 		try {
+			const body: CompileBody = { latex: source };
+
 			const res = await fetch("/api/compile", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ latex: source }),
+				body: JSON.stringify(body),
 			});
 
 			if (!res.ok) {
@@ -121,6 +127,15 @@ export default function Home() {
 		};
 	}, [compile]);
 
+	const downloadPdf = useCallback(async () => {
+		if (!pdfUrl) return;
+		const a = document.createElement("a");
+		a.href = pdfUrl;
+		a.download = "CV_ATS_Optimized.pdf";
+		a.click();
+		console.log("[ui] Download clicked");
+	}, [pdfUrl]);
+
 	useEffect(() => {
 		console.log("[ui] Effect: compile on latex change");
 		if (latex && !latex.includes("Click 'Generate ATS-Optimized CV'")) {
@@ -136,15 +151,6 @@ export default function Home() {
 			if (pdfUrl) URL.revokeObjectURL(pdfUrl);
 		};
 	}, []);
-
-	const downloadPdf = useCallback(async () => {
-		if (!pdfUrl) return;
-		const a = document.createElement("a");
-		a.href = pdfUrl;
-		a.download = "CV_ATS_Optimized.pdf";
-		a.click();
-		console.log("[ui] Download clicked");
-	}, [pdfUrl]);
 
 	return (
 		<div className="min-h-screen grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 sm:p-6 text-gray-800">
@@ -199,7 +205,19 @@ export default function Home() {
 					</label>
 				</div>
 
-				<div className="flex gap-2">
+				<div className="flex items-center gap-4 py-1">
+					<label className="text-sm flex items-center gap-1">
+						Bold Keywords&nbsp;
+						<input
+							type="checkbox"
+							name="allowBold"
+							checked={allowBold}
+							onChange={() => setAllowBold((prev) => !prev)}
+						/>
+					</label>
+				</div>
+
+				<div className="flex gap-2 mt-5">
 					<button
 						className="px-3 py-2 rounded bg-black text-white text-sm disabled:opacity-60 hover:scale-[98%]"
 						onClick={generate}

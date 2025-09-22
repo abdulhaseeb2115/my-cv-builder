@@ -1,10 +1,10 @@
-import { DEFAULT_CV } from "../../../config";
+import { DEFAULT_CV } from "../../config";
 import {
 	type CV,
 	type Experience,
 	type Project,
 	type Education,
-} from "../../types";
+} from "../types";
 
 export function generateLatex(optimizedData: Partial<CV>): string {
 	// Merge optimized data with original CV data
@@ -378,7 +378,7 @@ export function generateSkillsSection(skills: CV["skills"]): string {
 export function escapeLatex(text: unknown): string {
 	if (text === null || text === undefined) return "";
 	const s = String(text);
-	return s
+	const x = s
 		.replace(/\\/g, "\\textbackslash{}")
 		.replace(/&/g, "\\&")
 		.replace(/%/g, "\\%")
@@ -389,4 +389,6 @@ export function escapeLatex(text: unknown): string {
 		.replace(/}/g, "\\}")
 		.replace(/~/g, "\\textasciitilde{}")
 		.replace(/\^/g, "\\textasciicircum{}");
+
+	return x.replace(/\*\*(.+?)\*\*/g, "\\textbf{$1}");
 }

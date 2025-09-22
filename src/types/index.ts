@@ -49,3 +49,15 @@ export interface CV {
 	education: Education[];
 	projects: Project[];
 }
+
+export type Provider = "openai" | "claude" | "gemini";
+
+export type GenerateBody = {
+	jd: string;
+	provider?: Provider;
+	allowBold?: boolean;
+};
+
+export type CompileBody = {
+	latex: string;
+};

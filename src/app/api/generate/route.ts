@@ -1,19 +1,12 @@
 import OpenAI from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
-import { generateLatex } from "@/app/utils";
+import { generateLatex } from "@/utils";
+import { GenerateBody, Provider } from "@/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { DEFAULT_CV, SYSTEM_PROMPT } from "../../../../config";
+import { DEFAULT_CV, getSystemPrompt } from "../../../../config";
 
 export const runtime = "nodejs";
-
-type Provider = "openai" | "claude" | "gemini";
-
-type GenerateBody = {
-	cv: any;
-	jd: string;
-	provider?: Provider;
-};
 
 export async function POST(req: Request) {
 	try {
@@ -28,7 +21,10 @@ export async function POST(req: Request) {
 			);
 		}
 
+		const SYSTEM_PROMPT = getSystemPrompt(!!body?.allowBold);
+
 		const provider: Provider = (body.provider as Provider) ?? "openai";
+		console.log("[generate] Allow Bold:", !!body?.allowBold);
 		console.log("[generate] Using provider:", provider);
 
 		const user = [
