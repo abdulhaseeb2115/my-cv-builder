@@ -173,7 +173,7 @@ export const DEFAULT_CV: CV = {
 			title: "Full Stack Developer",
 			company: "Freelance",
 			website: "https://abhaseeb.com",
-			start: "Dec 2022",
+			start: "Sep 2022",
 			end: "Present",
 			bullets: [
 				"Developed and maintained comprehensive influencer marketing platform including frontend, backend, AWS deployment, CI/CD, and RBAC implementation.",
