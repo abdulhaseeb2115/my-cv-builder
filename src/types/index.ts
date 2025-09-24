@@ -16,6 +16,7 @@ export interface Achievement {
 export interface Experience {
 	title: string;
 	company: string;
+	website: string;
 	start: string;
 	end: string;
 	bullets: string[];

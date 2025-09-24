@@ -145,6 +145,7 @@ export const DEFAULT_CV: CV = {
 		{
 			title: "Full Stack Developer",
 			company: "NESL-IT",
+			website: "https://nesl-it.com",
 			start: "Aug 2023",
 			end: "Present",
 			bullets: [
@@ -158,6 +159,7 @@ export const DEFAULT_CV: CV = {
 		{
 			title: "Full Stack Developer",
 			company: "Bloom",
+			website: "https://gobloom.dev",
 			start: "Jul 2022",
 			end: "Jul 2023",
 			bullets: [
@@ -170,6 +172,7 @@ export const DEFAULT_CV: CV = {
 		{
 			title: "Full Stack Developer",
 			company: "Freelance",
+			website: "https://abhaseeb.com",
 			start: "Dec 2022",
 			end: "Present",
 			bullets: [

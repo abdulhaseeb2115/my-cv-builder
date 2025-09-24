@@ -261,7 +261,14 @@ export function generateLatex(optimizedData: Partial<CV>): string {
     \\begin{twocolentry}{
         ${escapeLatex(exp.start)} – ${escapeLatex(exp.end)}
     }
-        \\textbf{${escapeLatex(exp.title)}}, ${escapeLatex(exp.company)}
+        ${(() => {
+					const label = `\\textbf{${escapeLatex(exp.title)}}, ${escapeLatex(
+						exp.company
+					)}`;
+					return exp.website
+						? `\\hrefWithoutArrow{${exp.website}}{${label}}`
+						: label;
+				})()}
     \\end{twocolentry}
 
     \\vspace{0.10 cm}
