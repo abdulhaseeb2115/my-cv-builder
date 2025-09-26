@@ -30,6 +30,7 @@ You must return ONLY a valid JSON object with these exact keys:
     {
       "title": "Original job title",
       "company": "Original company name",
+	  "website": "Original company website",
       "start": "Start date",
       "end": "End date",
       "bullets": [
